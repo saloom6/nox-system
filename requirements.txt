@@ -1,6 +1,4 @@
 fastapi
 uvicorn
-pandas
 python-docx
 python-pptx
-python-multipart
