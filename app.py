@@ -3,10 +3,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 import os
 import docx
 from pptx import Presentation
+import openpyxl
 
 app = FastAPI()
 
-# كود الواجهة المحدث (مع خيارات إضافية إذا أردت مثل Excel أو PDF)
 html_content = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -16,8 +16,9 @@ html_content = """
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #0b0f19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #131b2e; padding: 30px; border-radius: 16px; width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1px solid #1e293b; text-align: center; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; background: #0b0f19; border: 1px solid #334155; color: #fff; box-sizing: border-box; }
-        button { width: 100%; background: #4f46e5; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; background: #0b0f19; border: 1px solid #334155; color: #fff; box-sizing: border-box; text-align: right; }
+        select option { background: #131b2e; color: #fff; direction: rtl; }
+        button { width: 100%; background: #4f46e5; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         #status { margin-top: 15px; font-size: 13px; }
     </style>
 </head>
@@ -26,10 +27,13 @@ html_content = """
         <h2>NOX ENGINE v2.0</h2>
         <input type="text" id="topic" placeholder="موضوع الملف أو التقرير">
         <input type="password" id="apiKey" placeholder="مفتاح الوصول (API Key)">
+
         <select id="serviceType">
-            <option value="word">📄 تقرير نصي (Word)</option>
-            <option value="powerpoint">📊 عرض تقديمي (PowerPoint)</option>
+            <option value="word">تقرير نصي - Word</option>
+            <option value="powerpoint">عرض تقديمي - PowerPoint</option>
+            <option value="excel">جدول بيانات - Excel</option>
         </select>
+
         <button onclick="generateFile()">تنفيذ وتوليد الملف</button>
         <div id="status"></div>
     </div>
@@ -56,17 +60,20 @@ html_content = """
                 });
 
                 if (response.ok) {
-                    // تحويل الاستجابة إلى ملف وتنزيله مباشرة
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = serviceType === 'word' ? 'NOX_Report.docx' : 'NOX_Presentation.pptx';
+
+                    if (serviceType === 'word') a.download = 'NOX_Report.docx';
+                    else if (serviceType === 'powerpoint') a.download = 'NOX_Presentation.pptx';
+                    else a.download = 'NOX_Sheet.xlsx';
+
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
 
-                    statusDiv.innerHTML = '<span style="color: #4ade80;" dir="rtl">✅ تم توليد وتنزيل الملف بنجاح!</span>';
+                    statusDiv.innerHTML = '<span style="color: #4ade80;">✅ تم توليد وتنزيل الملف بنجاح!</span>';
                 } else {
                     const err = await response.json();
                     statusDiv.innerHTML = '<span style="color: #f87171;">❌ ' + (err.detail || 'حدث خطأ') + '</span>';
@@ -93,11 +100,9 @@ async def generate_endpoint(request: Request):
     service_type = data.get("serviceType")
 
     if service_type == "word":
-        # إنشاء ملف وورد حقيقي
         doc = docx.Document()
         doc.add_heading(f'تقرير منظومة NOX', 0)
         doc.add_paragraph(f'موضوع التقرير: {topic}')
-        doc.add_paragraph('تم توليد هذا التقرير أوماتيكياً بواسطة منظومة سليمان ماهر الذكية.')
         file_path = "NOX_Report.docx"
         doc.save(file_path)
         return FileResponse(file_path,
@@ -105,20 +110,27 @@ async def generate_endpoint(request: Request):
                             filename="NOX_Report.docx")
 
     elif service_type == "powerpoint":
-        # إنشاء ملف بوربوينت حقيقي
         prs = Presentation()
-        slide_layout = prs.slide_layouts[0]  # شريحة عنوان
-        slide = prs.slides.add_slide(slide_layout)
-        title = slide.shapes.title
-        subtitle = slide.placeholders[1]
-
-        title.text = "منظومة NOX الذكية"
-        subtitle.text = f"موضوع العرض: {topic}"
-
+        slide = prs.slides.add_slide(prs.slide_layouts[0])
+        slide.shapes.title.text = "منظومة NOX الذكية"
+        slide.placeholders[1].text = f"موضوع العرض: {topic}"
         file_path = "NOX_Presentation.pptx"
         prs.save(file_path)
         return FileResponse(file_path,
                             media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation',
                             filename="NOX_Presentation.pptx")
+
+    elif service_type == "excel":
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "NOX Data"
+        ws['A1'] = "موضوع التقرير"
+        ws['B1'] = topic
+        ws['A2'] = "الحالة"
+        ws['B2'] = "تم التوليد بنجاح عبر منظومة NOX"
+        file_path = "NOX_Sheet.xlsx"
+        wb.save(file_path)
+        return FileResponse(file_path, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            filename="NOX_Sheet.xlsx")
 
     return JSONResponse(content={"detail": "نوع الخدمة غير مدعوم"}, status_code=400)
