@@ -2,301 +2,49 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NOX | المنظومة الذكية</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.6);
-            --bg-deep: #020617;
-            --panel-bg: rgba(15, 23, 42, 0.75);
-            --border: rgba(99, 102, 241, 0.3);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Tajawal', sans-serif;
-            background-color: var(--bg-deep);
-            background-image:
-                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.2) 0%, transparent 40%),
-                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            overflow: hidden;
-        }
-
-        /* إطار متحرك بخلفية مضيئة */
-        .wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 460px;
-        }
-
-        .wrapper::before {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            background: linear-gradient(45deg, #6366f1, #8b5cf6, #3b82f6, #6366f1);
-            background-size: 400%;
-            border-radius: 26px;
-            z-index: -1;
-            animation: glowing 10s linear infinite;
-            opacity: 0.7;
-        }
-
-        @keyframes glowing {
-            0% { background-position: 0 0; }
-            50% { background-position: 400% 0; }
-            100% { background-position: 0 0; }
-        }
-
-        .container {
-            width: 100%;
-            background: var(--panel-bg);
-            backdrop-filter: blur(30px);
-            border-radius: 24px;
-            padding: 45px 35px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9);
-        }
-
-        .brand-header {
-            text-align: center;
-            margin-bottom: 35px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 6px 14px;
-            background: rgba(99, 102, 241, 0.15);
-            color: #818cf8;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-            border: 1px solid rgba(99, 102, 241, 0.4);
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 900;
-            letter-spacing: 3px;
-            background: linear-gradient(135deg, #fff 30%, #818cf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 5px;
-        }
-
-        .brand-header p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .form-group {
-            margin-bottom: 22px;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 15px 18px;
-            background: rgba(2, 6, 23, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
-            color: white;
-            font-size: 0.95rem;
-            font-family: 'Tajawal', sans-serif;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        input:focus, select:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 15px var(--accent-glow);
-            background: rgba(2, 6, 23, 0.95);
-        }
-
-        select option {
-            background: #0f172a;
-            color: white;
-            padding: 10px;
-        }
-
-        .action-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            border: none;
-            border-radius: 14px;
-            color: white;
-            font-weight: 700;
-            font-size: 1.05rem;
-            font-family: 'Tajawal', sans-serif;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.6);
-            margin-top: 15px;
-        }
-
-        .action-btn:hover {
-            filter: brightness(1.15);
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.8);
-        }
-
-        #feedback {
-            margin-top: 20px;
-            padding: 14px;
-            border-radius: 12px;
-            text-align: center;
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        .success {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            color: #34d399;
-            display: block !important;
-        }
-
-        .error {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            color: #f87171;
-            display: block !important;
-        }
-
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 0.8s linear infinite;
-            display: none;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        body { font-family: Tahoma, sans-serif; background-color: #0b0f19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #131b2e; padding: 30px; border-radius: 16px; width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1px solid #1e293b; text-align: center; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; background: #0b0f19; border: 1px solid #334155; color: #fff; box-sizing: border-box; }
+        button { width: 100%; background: #4f46e5; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+        #status { margin-top: 15px; font-size: 13px; }
     </style>
 </head>
 <body>
-
-    <div class="wrapper">
-        <div class="container">
-            <div class="brand-header">
-                <span class="badge">NOX ENGINE v2.0</span>
-                <h1>NOX</h1>
-                <p>منظومة الأتمتة والتقارير الذكية</p>
-            </div>
-
-            <div class="form-group">
-                <label for="topic">موضوع الملف أو التقرير</label>
-                <input type="text" id="topic" placeholder="مثال: ميزانية الربع الأول...">
-            </div>
-
-            <div class="form-group">
-                <label for="apikey">مفتاح الوصول (API Key)</label>
-                <input type="password" id="apikey" placeholder="••••••••••••••••">
-            </div>
-
-            <div class="form-group">
-                <label for="fileType">اختر نوع الخدمة</label>
-                <select id="fileType">
-                    <option value="generate-word">📄 تقرير نصي (Word)</option>
-                    <option value="generate-ppt">📊 عرض تقديمي (PowerPoint)</option>
-                    <option value="generate-excel">📈 جداول بيانات (Excel)</option>
-                    <option value="analyze-report">🤖 تحليل مالي ذكي (AI Report)</option>
-                </select>
-            </div>
-
-            <button class="action-btn" id="submitBtn" onclick="generateFile()">
-                <span id="btnText">تنفيذ وتوليد الملف</span>
-                <div class="spinner" id="btnSpinner"></div>
-            </button>
-
-            <div id="feedback"></div>
-        </div>
+    <div class="card">
+        <h2>NOX ENGINE v2.0</h2>
+        <input type="text" id="topic" placeholder="موضوع الملف">
+        <input type="password" id="apiKey" placeholder="مفتاح الوصول">
+        <select id="serviceType">
+            <option value="Word">تقرير نصي (Word)</option>
+            <option value="PowerPoint">عرض تقديمي (PowerPoint)</option>
+        </select>
+        <button onclick="generateFile()">تنفيذ وتوليد الملف</button>
+        <div id="status"></div>
     </div>
 
     <script>
         async function generateFile() {
-            const btn = document.getElementById('submitBtn');
-            const btnText = document.getElementById('btnText');
-            const spinner = document.getElementById('btnSpinner');
-            const feedback = document.getElementById('feedback');
+            const topic = document.getElementById('topic').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const serviceType = document.getElementById('serviceType').value;
+            const statusDiv = document.getElementById('status');
 
-            const type = document.getElementById('fileType').value;
-            const topic = document.getElementById('topic').value.trim();
-            const key = document.getElementById('apikey').value.trim();
-
-            feedback.style.display = "none";
-
-            if (!topic && type !== 'analyze-report') {
-                feedback.className = "error";
-                feedback.innerText = "⚠️ يرجى إدخال الموضوع أولاً!";
-                return;
-            }
-
-            btn.disabled = true;
-            btnText.innerText = "جاري المعالجة...";
-            spinner.style.display = "block";
+            statusDiv.innerText = '⏳ جاري الاتصال...';
 
             try {
-                let url = `http://127.0.0.1:8000/${type}/?`;
-                if (type === 'generate-excel') {
-                    url += `item_name=${encodeURIComponent(topic)}&value=150`;
-                } else if (type === 'generate-word') {
-                    url += `topic=${encodeURIComponent(topic)}`;
-                } else if (type === 'generate-ppt') {
-                    url += `presentation_title=${encodeURIComponent(topic)}`;
-                }
-
-                const response = await fetch(url, {
+                // الاتصال بالسيرفر بدون تحديد رابط محلي ليعمل على Render
+                const response = await fetch('/generate', {
                     method: 'POST',
-                    headers: { 'x-api-key': key }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, apiKey, serviceType })
                 });
 
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const a = document.createElement('a');
-                    a.href = window.URL.createObjectURL(blob);
-                    a.download = `NOX_File_${Date.now()}`;
-                    a.click();
-
-                    feedback.className = "success";
-                    feedback.innerText = "✨ تم إنشاء وتنزيل الملف بنجاح!";
-                } else {
-                    feedback.className = "error";
-                    feedback.innerText = "❌ مفتاح الوصول غير صحيح أو خطأ بالسيرفر.";
-                }
-            } catch (err) {
-                feedback.className = "error";
-                feedback.innerText = "❌ تعذر الاتصال بالسيرفر المحلي.";
-            } finally {
-                btn.disabled = false;
-                btnText.innerText = "تنفيذ وتوليد الملف";
-                spinner.style.display = "none";
+                const result = await response.json();
+                statusDiv.innerText = '✅ ' + result.message;
+            } catch (error) {
+                statusDiv.innerText = '❌ تعذر الاتصال بالسيرفر.';
             }
         }
     </script>
