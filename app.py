@@ -4,6 +4,7 @@ import os
 import docx
 from pptx import Presentation
 import openpyxl
+import openai
 
 app = FastAPI()
 
@@ -13,7 +14,7 @@ html_content = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NOX AI | المنظومة الذكية</title>
+    <title>NOX AI Studio | المنظومة المتكاملة</title>
     <style>
         :root {
             --bg-sidebar: #171717;
@@ -36,16 +37,15 @@ html_content = """
             overflow: hidden;
         }
 
-       /* الشريط الجانبي على طريقة OpenAI */
+        /* الشريط الجانبي */
         .sidebar {
-            width: 260px;
+            width: 280px;
             background-color: var(--bg-sidebar);
             border-left: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            padding: 12px;
+            padding: 15px;
             box-sizing: border-box;
-            transition: transform 0.3s ease;
         }
 
         .new-chat-btn {
@@ -65,11 +65,32 @@ html_content = """
         }
         .new-chat-btn:hover { background-color: var(--bg-input); }
 
+        .settings-group {
+            margin-bottom: 15px;
+        }
+        .settings-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 5px;
+        }
+        .settings-group select, .settings-group input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
         .history-title {
             font-size: 12px;
             color: var(--text-muted);
-            margin-bottom: 10px;
-            padding-right: 8px;
+            margin: 15px 0 8px 0;
+            padding-right: 4px;
         }
 
         .history-list {
@@ -78,7 +99,7 @@ html_content = """
         }
 
         .history-item {
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-radius: 6px;
             font-size: 13px;
             color: var(--text-main);
@@ -90,69 +111,104 @@ html_content = """
         }
         .history-item:hover { background-color: var(--bg-input); }
 
-        /* منطقة العمل الرئيسية */
+        /* منطقة المحادثة الرئيسية */
         .main-content {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
             position: relative;
-            padding: 20px;
+            height: 100vh;
             box-sizing: border-box;
         }
 
-        .chat-container {
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+            max-width: 800px;
             width: 100%;
-            max-width: 650px;
-            text-align: center;
+            margin: 0 auto;
         }
 
-        .chat-container h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 25px;
-            color: #fff;
+        .message {
+            display: flex;
+            gap: 15px;
+            max-width: 100%;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        .message.user {
+            align-self: flex-start;
+            background-color: #2f2f2f;
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .message.ai {
+            align-self: flex-start;
+            background-color: transparent;
+            padding: 0;
+            width: 100%;
         }
 
-        /* صندوق الإدخال الذكي */
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .user-av { background: #5436da; color: #fff; }
+        .ai-av { background: var(--accent-color); color: #fff; }
+
+        /* منطقة الإدخال بالأسفل */
+        .input-area {
+            padding: 20px;
+            background: linear-gradient(to top, var(--bg-main) 80%, transparent);
+            display: flex;
+            justify-content: center;
+        }
+
         .input-box-wrapper {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 15px;
+            padding: 12px 15px;
+            width: 100%;
+            max-width: 800px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .input-box-wrapper input, 
-        .input-box-wrapper select {
+        .input-box-wrapper textarea {
             width: 100%;
             background: transparent;
             border: none;
             color: var(--text-main);
             font-size: 15px;
             outline: none;
-            padding: 8px 0;
+            resize: none;
+            height: 45px;
             box-sizing: border-box;
+            font-family: inherit;
         }
 
-        .input-box-wrapper select option {
-            background-color: var(--bg-input);
-            color: #fff;
-        }
-
-        .divider {
-            height: 1px;
-            background-color: var(--border-color);
-            margin: 10px 0;
-        }
-
-        .controls-row {
+        .input-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 10px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 8px;
         }
 
         .send-btn {
@@ -168,12 +224,23 @@ html_content = """
         }
         .send-btn:hover { background-color: var(--accent-hover); }
 
-        #status {
-            margin-top: 15px;
-            font-size: 13px;
+        .export-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
         }
+        .export-btn {
+            background: #334155;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .export-btn:hover { background: #475569; }
 
-        /* قسم الحساب في أسفل القائمة */
         .user-profile {
             border-top: 1px solid var(--border-color);
             padding-top: 12px;
@@ -182,114 +249,188 @@ html_content = """
             gap: 10px;
             font-size: 13px;
             color: var(--text-main);
-        }
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            background: var(--accent-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
+            margin-top: auto;
         }
     </style>
 </head>
 <body>
 
-    <!-- الشريط الجانبي (Sidebar) -->
+    <!-- الشريط الجانبي للإعدادات والموديلات -->
     <div class="sidebar">
         <button class="new-chat-btn" onclick="location.reload()">
-            <span>＋</span> مشروع / تقرير جديد
+            <span>＋</span> محادثة جديدة
         </button>
 
-        <div class="history-title">الملفات السابقة</div>
-        <div class="history-list">
-            <div class="history-item">📄 تقرير ميزانية الربع الأول</div>
-            <div class="history-item">📊 عرض تقديمي للمشروع</div>
-            <div class="history-item">📈 جدول الأداء المالي</div>
+        <div class="settings-group">
+            <label>مفتاح OpenAI API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+        </div>
+
+        <div class="settings-group">
+            <label>اختر نموذج الذكاء الاصطناعي</label>
+            <select id="modelType">
+                <option value="gpt-4o-mini">GPT-4o-mini (سريع وذكي)</option>
+                <option value="gpt-4o">GPT-4o (شامل وعالي الدقة)</option>
+            </select>
+        </div>
+
+        <div class="settings-group">
+            <label>شخصية الذكاء الاصطناعي</label>
+            <select id="persona">
+                <option value="مساعد أعمال ومشاريع محترف">خبير أعمال وتقارير</option>
+                <option value="محلل بيانات ومالية">محلل مالي وبيانات</option>
+                <option value="كاتب محتوى تسويقي إبداعي">خبير تسويق ومحتوى</option>
+            </select>
+        </div>
+
+        <div class="history-title">سجل العمليات</div>
+        <div class="history-list" id="historyList">
+            <div class="history-item">📄 تحليل خطة العمل</div>
+            <div class="history-item">📊 تقرير المبيعات</div>
         </div>
 
         <div class="user-profile">
-            <div class="user-avatar">س</div>
+            <div class="avatar user-av">س</div>
             <div>
                 <div style="font-weight: 600;">سليمان ماهر</div>
-                <div style="font-size: 11px; color: var(--text-muted);">حساب نشط (Pro)</div>
+                <div style="font-size: 11px; color: var(--text-muted);">مطور المنظومة</div>
             </div>
         </div>
     </div>
 
-    <!-- المساحة الرئيسية -->
+    <!-- منطقة الشات والدردشة الرئيسية -->
     <div class="main-content">
-        <div class="chat-container">
-            <h1>ما الذي تريد إنجازه اليوم يا سليمان؟</h1>
-
-            <div class="input-box-wrapper">
-                <input type="text" id="topic" placeholder="اكتب موضوع التقرير أو الملف (مثال: خطة تسويق مصنع تاكون كولد)...">
-
-                <div class="divider"></div>
-
-                <input type="password" id="apiKey" placeholder="أدخل مفتاح الوصول (API Key)...">
-
-                <div class="divider"></div>
-
-                <div class="controls-row">
-                    <select id="serviceType" style="width: 60%;">
-                        <option value="word">📄 تقرير نصي - Word</option>
-                        <option value="powerpoint">📊 عرض تقديمي - PowerPoint</option>
-                        <option value="excel">📈 جدول بيانات - Excel</option>
-                    </select>
-
-                    <button class="send-btn" onclick="generateFile()">توليد الملف ➔</button>
+        <div class="chat-messages" id="chatMessages">
+ رسالة الترحيب الافتراضية -->
+            <div class="message ai">
+                <div style="display: flex; gap: 15px;">
+                    <div class="avatar ai-av">AI</div>
+                    <div>
+                        <strong>أهلاً بك يا سليمان في استوديو NOX الذكي.</strong>
+                        <p style="color: var(--text-muted); margin: 5px 0 0 0;">قم بإدخال مفتاح الـ API الخاص بك من القائمة الجانبية، واكتب طلبك أو استفسارك بالأعلى لنبدأ الإنجاز الفوري وتوليد التقارير.</p>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div id="status"></div>
+        <!-- صندوق الإدخال السفلي -->
+        <div class="input-area">
+            <div class="input-box-wrapper">
+                <textarea id="promptInput" placeholder="اكتب رسالتك أو موضوع التقرير هنا (Enter للإرسال)..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
+                <div class="input-controls">
+                    <span style="font-size: 12px; color: var(--text-muted);">اضغط إرسال أو اختر تصدير مباشر للملفات</span>
+                    <button class="send-btn" onclick="sendMessage()">إرسال ➔</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        async function generateFile() {
-            const topic = document.getElementById('topic').value;
-            const apiKey = document.getElementById('apiKey').value;
-            const serviceType = document.getElementById('serviceType').value;
-            const statusDiv = document.getElementById('status');
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
 
-            if (!topic) {
-                statusDiv.innerHTML = '<span style="color: #ef4444;">⚠️ الرجاء إدخال موضوع الملف أولاً</span>';
+        async function sendMessage() {
+            const promptInput = document.getElementById('promptInput');
+            const apiKey = document.getElementById('apiKey').value;
+            const modelType = document.getElementById('modelType').value;
+            const persona = document.getElementById('persona').value;
+            const chatMessages = document.getElementById('chatMessages');
+
+            const text = promptInput.value.trim();
+            if (!text) return;
+
+            if (!apiKey) {
+                alert('الرجاء إدخال مفتاح OpenAI API Key من القائمة الجانبية أولاً.');
                 return;
             }
 
-            statusDiv.innerHTML = '<span style="color: #38bdf8;">⏳ جاري المعالجة وتوليد الملف الذكي...</span>';
+            // عرض رسالة المستخدم
+            chatMessages.innerHTML += `
+                <div class="message user">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="avatar user-av">س</div>
+                        <div>${text}</div>
+                    </div>
+                </div>
+            `;
+            promptInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // رسالة الانتظار
+            const loadingId = 'loading-' + Date.now();
+            chatMessages.innerHTML += `
+                <div class="message ai" id="${loadingId}">
+                    <div style="display: flex; gap: 15px;">
+                        <div class="avatar ai-av">AI</div>
+                        <div style="color: #38bdf8;">⏳ جاري التفكير ومعالجة الطلب...</div>
+                    </div>
+                </div>
+            `;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
             try {
-                const response = await fetch('/generate', {
+                const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic, apiKey, serviceType })
+                    body: JSON.stringify({ prompt: text, apiKey, modelType, persona })
                 });
 
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-
-                    if (serviceType === 'word') a.download = 'NOX_AI_Report.docx';
-                    else if (serviceType === 'powerpoint') a.download = 'NOX_AI_Presentation.pptx';
-                    else a.download = 'NOX_AI_Sheet.xlsx';
-
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-
-                    statusDiv.innerHTML = '<span style="color: #10a37f;">✅ تم إنشاء وتنزيل الملف بنجاح!</span>';
+                    chatMessages.innerHTML += `
+                        <div class="message ai">
+                            <div style="display: flex; gap: 15px; width: 100%;">
+                                <div class="avatar ai-av">AI</div>
+                                <div style="width: 100%;">
+                                    <div style="white-space: pre-wrap; background: #262626; padding: 15px; border-radius: 10px; border: 1px solid var(--border-color);">${data.reply}</div>
+                                    <div class="export-buttons">
+                                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'word')">📥 تصدير Word</button>
+                                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'powerpoint')">📥 تصدير PowerPoint</button>
+                                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'excel')">📥 تصدير Excel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    const err = await response.json();
-                    statusDiv.innerHTML = '<span style="color: #ef4444;">❌ ' + (err.detail || 'حدث خطأ') + '</span>';
+                    chatMessages.innerHTML += `<div class="message ai" style="color: #ef4444;">❌ خطأ: ${data.detail}</div>`;
                 }
-            } catch (error) {
-                statusDiv.innerHTML = '<span style="color: #ef4444;">❌ تعذر الاتصال بالسيرفر.</span>';
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                chatMessages.innerHTML += `<div class="message ai" style="color: #ef4444;">❌ تعذر الاتصال بالسيرفر.</div>`;
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function exportFile(topic, type) {
+            const apiKey = document.getElementById('apiKey').value;
+            const modelType = document.getElementById('modelType').value;
+
+            alert('جاري تجهيز وتنزيل ملف الـ ' + type.toUpperCase() + '...');
+
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: decodeURIComponent(topic), apiKey, modelType, serviceType: type })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = type === 'word' ? 'NOX_Report.docx' : type === 'powerpoint' ? 'NOX_Presentation.pptx' : 'NOX_Sheet.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                alert('فشل توليد الملف.');
             }
         }
     </script>
@@ -303,46 +444,87 @@ async def read_index():
     return html_content
 
 
+@app.post("/chat")
+async def chat_endpoint(request: Request):
+    data = await request.json()
+    prompt = data.get("prompt")
+    api_key = data.get("apiKey")
+    model_type = data.get("modelType", "gpt-4o-mini")
+    persona = data.get("persona", "مساعد أعمال محترف")
+
+    if not api_key:
+        return JSONResponse(content={"detail": "مفتاح API مطلوب"}, status_code=400)
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        completion = client.chat.completions.create(
+            model=model_type,
+            messages=[
+                {"role": "system",
+                 "content": f"أنت ذكاء اصطناعي تعمل بصفتك: {persona}. أجب باحترافية وبتنسيق دقيق باللغة العربية."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        reply = completion.choices[0].message.content
+        return {"reply": reply}
+    except Exception as e:
+        return JSONResponse(content={"detail": str(e)}, status_code=400)
+
+
 @app.post("/generate")
 async def generate_endpoint(request: Request):
     data = await request.json()
     topic = data.get("topic")
+    api_key = data.get("apiKey")
+    model_type = data.get("modelType", "gpt-4o-mini")
     service_type = data.get("serviceType")
 
-    # محرك توليد الملفات الذكي
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        completion = client.chat.completions.create(
+            model=model_type,
+            messages=[
+                {"role": "system", "content": "أنت مساعد ذكاء اصطناعي لتجهيز محتوى الملفات والتقارير التنفيذية."},
+                {"role": "user", "content": f"اكتب محتوى تفصيلي ومنظم لإنشاء ملف حول: {topic}"}
+            ]
+        )
+        ai_content = completion.choices[0].message.content
+    except Exception as e:
+        ai_content = f"محتوى افتراضي للموضوع: {topic}"
+
     if service_type == "word":
         doc = docx.Document()
-        doc.add_heading(f'تقرير منظومة NOX AI', 0)
-        doc.add_paragraph(f'الموضوع: {topic}')
-        doc.add_paragraph('تم التوليد أوتوماتيكياً بواسطة نموذج NOX الذكي.')
-        file_path = "NOX_AI_Report.docx"
-        doc.save(file_path)
-        return FileResponse(file_path,
-                            media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            filename="NOX_AI_Report.docx")
+        doc.add_heading(f'تقرير: {topic}', 0)
+        for line in ai_content.split('\n'):
+            if line.strip(): doc.add_paragraph(line)
+        path = "NOX_Report.docx"
+        doc.save(path)
+        return FileResponse(path, filename="NOX_Report.docx")
 
     elif service_type == "powerpoint":
         prs = Presentation()
         slide = prs.slides.add_slide(prs.slide_layouts[0])
-        slide.shapes.title.text = "NOX AI Engine"
-        slide.placeholders[1].text = f"الموضوع: {topic}"
-        file_path = "NOX_AI_Presentation.pptx"
-        prs.save(file_path)
-        return FileResponse(file_path,
-                            media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                            filename="NOX_AI_Presentation.pptx")
+        slide.shapes.title.text = topic
+        slide.placeholders[1].text = "منظومة NOX AI Studio"
+
+        slide2 = prs.slides.add_slide(prs.slide_layouts[1])
+        slide2.shapes.title.text = "التفاصيل الأساسية"
+        slide2.placeholders[1].text = ai_content[:600]
+
+        path = "NOX_Presentation.pptx"
+        prs.save(path)
+        return FileResponse(path, filename="NOX_Presentation.pptx")
 
     elif service_type == "excel":
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "NOX AI Data"
+        ws.title = "NOX Data"
         ws['A1'] = "الموضوع"
         ws['B1'] = topic
-        ws['A2'] = "الحالة"
-        ws['B2'] = "تم التوليد بنجاح"
-        file_path = "NOX_AI_Sheet.xlsx"
-        wb.save(file_path)
-        return FileResponse(file_path, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            filename="NOX_AI_Sheet.xlsx")
+        ws['A2'] = "التحليل المستخرج"
+        ws['B2'] = ai_content[:400]
+        path = "NOX_Sheet.xlsx"
+        wb.save(path)
+        return FileResponse(path, filename="NOX_Sheet.xlsx")
 
-    return JSONResponse(content={"detail": "نوع الخدمة غير مدعوم"}, status_code=400)
+    return JSONResponse(content={"detail": "خطأ في نوع الملف"}, status_code=400)
