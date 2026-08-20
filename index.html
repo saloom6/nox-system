@@ -2,66 +2,93 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منظومة سليمان ماهر الذكية</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; display: flex; justify-content: center; }
-        .container { max-width: 500px; width: 100%; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        button { background: #1F4E78; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #153a5c; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        h2 { margin-bottom: 20px; color: #38bdf8; }
+        p { color: #94a3b8; margin-bottom: 30px; }
+        input, select {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background: #10b981;
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #059669; }
     </style>
 </head>
 <body>
-<div class="container">
+
+<div class="card">
     <h2>منظومة سليمان ماهر الذكية</h2>
-    <input type="text" id="apiKey" placeholder="ادخل مفتاح Google API Key">
-    <input type="text" id="topic" placeholder="ما هو موضوع المشروع الذي تريده؟">
+    <p>أنشئ ملفاتك الاحترافية بـ 5$ فقط</p>
+
+    <input type="text" id="topic" placeholder="ما هو موضوع التقرير أو المشروع؟">
+
     <select id="serviceType">
-        <option value="excel">ملف Excel (تحليل بيانات)</option>
-        <option value="word">ملف Word (تقرير استراتيجي)</option>
-        <option value="powerpoint">ملف PowerPoint (عرض تقديمي)</option>
+        <option value="excel">📊 جدول بيانات (Excel)</option>
+        <option value="word">📝 تقرير (Word)</option>
+        <option value="powerpoint">🎯 عرض تقديمي (PowerPoint)</option>
     </select>
-    <button onclick="generate()">بدء التوليد والتحميل</button>
+
+    <button onclick="startBusiness()">ادفع $5 وابدأ التوليد</button>
 </div>
 
 <script>
-async function generate() {
-    const data = {
-        apiKey: document.getElementById('apiKey').value,
-        topic: document.getElementById('topic').value,
-        serviceType: document.getElementById('serviceType').value
-    };
+function startBusiness() {
+    const topic = document.getElementById('topic').value;
+    const serviceType = document.getElementById('serviceType').value;
 
-    if(!data.apiKey || !data.topic) {
-        alert("يرجى إدخال مفتاح الـ API وموضوع المشروع");
+    if(!topic) {
+        alert("يرجى إدخال موضوع المشروع أولاً!");
         return;
     }
 
-    // الرابط المحدث الخاص بسيرفرك
-    const API_URL = "https://nox-system-siun.onrender.com/generate";
+    // حفظ البيانات في المتصفح لاستخدامها بعد الدفع
+    localStorage.setItem('topic', topic);
+    localStorage.setItem('type', serviceType);
 
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "My_Generated_Project_File";
-            a.click();
-            alert("تم توليد الملف بنجاح!");
-        } else {
-            alert("حدث خطأ أثناء الاتصال بالسيرفر. تأكد من صحة الـ API Key.");
-        }
-    } catch (error) {
-        alert("فشل الاتصال بالسيرفر. تأكد أن السيرفر يعمل.");
-    }
+    // توجيه الزبون لصفحة الدفع
+    window.location.href = "https://buy.stripe.com/test_00w9AL7b55H5eyY7Re0Jq00";
 }
 </script>
+
 </body>
 </html>

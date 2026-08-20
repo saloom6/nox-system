@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 import openpyxl
@@ -9,10 +9,8 @@ from pptx import Presentation
 import docx
 import os
 
-# 1. إنشاء التطبيق
 app = FastAPI()
 
-# 2. إعدادات الـ CORS للسماح بالاتصال من أي واجهة أمامية
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,25 +19,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. دالة جلب النموذج معدلة لتستقبل مفتاح الـ API بدون أخطاء
-def get_best_model(api_key=None):
+# ضع مفتاح Google Gemini الرئيسي الخاص بك هنا مباشرة لتغطية طلبات العملاء المدفوعة
+MASTER_GEMINI_API_KEY = "ضع_مفتاح_الجوجل_اي_بي_اي_هنا"
+
+def get_best_model():
     return "gemini-1.5-flash"
 
-# 4. نقطة التوليد الرئيسية
 @app.post("/generate")
 async def generate_endpoint(request: Request):
     data = await request.json()
     topic = data.get("topic")
-    api_key = data.get("apiKey")
     service_type = data.get("serviceType")
 
-    # إعداد مفتاح جوجل جيميناي
-    if api_key:
-        genai.configure(api_key=api_key)
+    if not topic:
+        raise HTTPException(status_code=400, detail="الرجاء إدخال موضوع المشروع")
 
-    # توجيه ذكي عام لأي موضوع يطلبه المستخدم لجلب تفاصيل احترافية
+    genai.configure(api_key=MASTER_GEMINI_API_KEY)
+
     try:
-        model = genai.GenerativeModel(get_best_model(api_key))
+        model = genai.GenerativeModel(get_best_model())
         if service_type == "powerpoint":
             ai_prompt = f"""
             أنت خبير عروض تقديمية. أنشئ محتوى عرض تقديمي احترافي من 4 شرائح حول: '{topic}'.
@@ -69,10 +67,10 @@ async def generate_endpoint(request: Request):
             ai_prompt = f"اكتب تقريراً احترافياً ومفصلاً وشاملاً حول الموضوع التالي بناءً على طلب المستخدم: '{topic}'"
 
         ai_content = model.generate_content(ai_prompt).text
-    except Exception as e:
+    except Exception:
         ai_content = f"محتوى تفصيلي خاص بمشروع: {topic}"
 
-    # 1. تصدير ملف إكسل ديناميكي يعتمد على طلب المستخدم
+    # تصدير ملف إكسل
     if service_type == "excel":
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -82,7 +80,6 @@ async def generate_endpoint(request: Request):
         header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
         header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
         regular_font = Font(name="Segoe UI", size=10)
-        bold_font = Font(name="Segoe UI", size=10, bold=True)
         thin_border = Border(
             left=Side(style='thin', color='D9D9D9'), right=Side(style='thin', color='D9D9D9'),
             top=Side(style='thin', color='D9D9D9'), bottom=Side(style='thin', color='D9D9D9')
@@ -97,7 +94,6 @@ async def generate_endpoint(request: Request):
             cell.font = header_font
             cell.alignment = Alignment(horizontal="center", vertical="center")
 
-        # محاولة استخراج الأسطر الذكية التي ولّدها النموذج أو وضع بيانات ديناميكية افتراضية بناءً على موضوع المستخدم
         rows_data = []
         for line in ai_content.split('\n'):
             if "السطر:" in line:
@@ -108,7 +104,6 @@ async def generate_endpoint(request: Request):
                     rows_data.append(parts[:5])
 
         if not rows_data:
-            # بيانات ديناميكية افتراضية ذكية تتكيف مع أي موضوع يتم إدخاله
             rows_data = [
                 [f"تحليل {topic}", "الركيزة الأساسية", "مستوى التنفيذ", "جاهزية التشغيل", "ممتاز"],
                 ["الموارد والتكلفة", "دراسة الميزانية", "التكلفة التقديرية", "تحسين الموارد", "مكتمل"],
@@ -133,7 +128,7 @@ async def generate_endpoint(request: Request):
         wb.save(path)
         return FileResponse(path, filename="Dynamic_Project_Sheet.xlsx")
 
-    # 2. تصدير ملف وورد ديناميكي
+    # تصدير ملف وورد
     elif service_type == "word":
         doc = docx.Document()
         doc.add_heading(f'تقرير استراتيجي: {topic}', 0)
@@ -143,7 +138,7 @@ async def generate_endpoint(request: Request):
         doc.save(path)
         return FileResponse(path, filename="Dynamic_Report.docx")
 
-    # 3. تصدير بوربوينت ديناميكي
+    # تصدير بوربوينت
     elif service_type == "powerpoint":
         prs = Presentation()
         slide1 = prs.slides.add_slide(prs.slide_layouts[0])
@@ -163,14 +158,12 @@ async def generate_endpoint(request: Request):
         prs.save(path)
         return FileResponse(path, filename="Dynamic_Presentation.pptx")
 
-    # 4. تصدير نصي افتراضي
     else:
         path = "Dynamic_Document.txt"
         with open(path, "w", encoding="utf-8") as f:
             f.write(ai_content)
         return FileResponse(path, filename="Dynamic_Document.txt")
 
-# 5. نقطة فحص للتاكد من عمل السيرفر
 @app.get("/")
 async def root():
     return {"message": "Nox System API is running successfully"}
