@@ -6,11 +6,15 @@ from pptx import Presentation
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+import stripe
 import os
 
 app = FastAPI()
 
-# HTML Frontend الشامل (القائمة الجانبية، تسجيل الدخول، الدفع والاشتراكات، والذكاء الاصطناعي)
+# إعداد مفتاح Stripe السري الخاص بك
+stripe.api_key = "sk_test_51U6Rp70txQcmGSJZZy13LC90X6kQsrCQgxjLjsWuL19UJzE1Exursb2MABvHDd7P6x2OiPi5rrkRAKW24by5gaWN00w8Vno53p"
+
+# HTML Frontend الشامل مع الربط الحقيقي لبوابة الدفع
 html_content = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -37,7 +41,6 @@ html_content = """
             height: 100vh;
             overflow: hidden;
         }
-        /* القائمة الجانبية */
         .sidebar {
             width: 300px;
             background-color: var(--bg-sidebar);
@@ -85,7 +88,6 @@ html_content = """
         .sub-btn { background-color: #059669; }
         .sub-btn:hover { background-color: #047857; }
 
-        /* المحتوى الرئيسي */
         .main-content {
             flex-grow: 1;
             display: flex;
@@ -167,7 +169,6 @@ html_content = """
         }
         .export-btn:hover { background: #475569; }
 
-        /* نافذة الاشتراك والدفع المنبثقة (Modal) */
         .modal {
             display: none;
             position: fixed;
@@ -198,14 +199,13 @@ html_content = """
 </head>
 <body>
 
-    <!-- القائمة الجانبية -->
     <div class="sidebar">
         <div>
             <h2>NOX AI Studio</h2>
 
             <div class="user-panel">
-                <div id="userInfo" style="font-size: 13px; margin-bottom: 8px;">مرحباً: <b>زائر</b></div>
-                <button class="action-btn" id="authBtn" onclick="toggleAuth()">تسجيل الدخول</button>
+                <div id="userInfo" style="font-size: 13px; margin-bottom: 8px;">مرحباً: <b>سليمان ماهر</b></div>
+                <button class="action-btn" id="authBtn" onclick="toggleAuth()">تسجيل الخروج</button>
             </div>
 
             <div class="settings-group">
@@ -215,7 +215,7 @@ html_content = """
 
             <div class="user-panel" style="text-align: center;">
                 <div style="font-size: 12px; color: var(--text-muted);">حالة الاشتراك</div>
-                <div id="subStatus" style="font-size: 14px; font-weight: bold; color: #f59e0b; margin: 5px 0;">باقة مجانية</div>
+                <div id="subStatus" style="font-size: 14px; font-weight: bold; color: #10b981; margin: 5px 0;">مشترك (PRO)</div>
                 <button class="action-btn sub-btn" onclick="openSubModal()">ترقية الاشتراك والدفع 💳</button>
             </div>
         </div>
@@ -225,63 +225,62 @@ html_content = """
         </div>
     </div>
 
-    <!-- المحتوى الرئيسي -->
     <div class="main-content">
         <div class="chat-messages" id="chatMessages">
             <div class="message">
-                <strong>أهلاً بك يا سليمان في منظومتك المتكاملة.</strong>
-                <p style="color: var(--text-muted); margin: 5px 0 0 0;">القائمة الجانبية جاهزة لإدارة حسابك ومفتاح الـ API والاشتراكات، وابدأ بكتابة طلبك بالأسفل.</p>
+                <strong>أهلاً بك يا سليمان.</strong>
+                <p style="color: var(--text-muted); margin: 5px 0 0 0;">تم ربط نظام الدفع الحقيقي عبر بوابة Stripe بنجاح.</p>
             </div>
         </div>
 
         <div class="input-area">
             <div class="input-box-wrapper">
-                <textarea id="promptInput" placeholder="اكتب طلبك هنا (مثال: جدول احترافي اكسل للربع الاول أو تقرير شامل)..." onkeydown="handleKey(event)"></textarea>
+                <textarea id="promptInput" placeholder="اكتب طلبك هنا..." onkeydown="handleKey(event)"></textarea>
                 <button class="send-btn" onclick="sendMessage()">إرسال ➔</button>
             </div>
         </div>
     </div>
 
-    <!-- نافذة الاشتراكات والدفع -->
     <div class="modal" id="subModal">
         <div class="modal-content">
-            <h3>اختر خطة الاشتراك</h3>
-            <p style="font-size: 12px; color: var(--text-muted);">استمتع بمميزات غير محدودة وتصدير احترافي</p>
-
-            <div class="pricing-card" onclick="processPayment('باقة PRO الشهرية - 49 ريال')">
-                <h4>باقة PRO</h4>
-                <p style="font-size: 13px; color: var(--text-muted);">تصدير غير محدود + نماذج متقدمة</p>
-                <b>49 ر.س / شهرياً</b>
+            <h3>اختر خطة الاشتراك الحقيقي</h3>
+            <div class="pricing-card" onclick="createCheckout('pro')">
+                <h4>باقة PRO الشهرية</h4>
+                <b>49 ريال سعودي / شهرياً</b>
             </div>
-
-            <div class="pricing-card" onclick="processPayment('الباقة الذهبية للأعمال - 149 ريال')">
-                <h4>باقة الأعمال (Enterprise)</h4>
-                <p style="font-size: 13px; color: var(--text-muted);">دعم كامل للشركات والربط البرمجي</p>
-                <b>149 ر.س / سنوياً</b>
+            <div class="pricing-card" onclick="createCheckout('enterprise')">
+                <h4>باقة الأعمال السنوية</h4>
+                <b>149 ريال سعودي / سنوياً</b>
             </div>
-
             <button class="action-btn" style="background: #ef4444; margin-top: 15px;" onclick="closeSubModal()">إغلاق</button>
         </div>
     </div>
 
     <script>
-        let isLoggedIn = false;
+        let isLoggedIn = true;
 
         function toggleAuth() {
             isLoggedIn = !isLoggedIn;
             document.getElementById('userInfo').innerHTML = isLoggedIn ? 'مرحباً: <b>سليمان ماهر</b>' : 'مرحباً: <b>زائر</b>';
             document.getElementById('authBtn').innerText = isLoggedIn ? 'تسجيل الخروج' : 'تسجيل الدخول';
-            document.getElementById('authBtn').style.background = isLoggedIn ? '#374151' : '#1a73e8';
         }
 
         function openSubModal() { document.getElementById('subModal').style.display = 'flex'; }
         function closeSubModal() { document.getElementById('subModal').style.display = 'none'; }
 
-        function processPayment(planName) {
-            alert('تم اختيار: ' .concat(planName, '\\nجاري توجيهك لبوابة الدفع الآمنة...'));
-            document.getElementById('subStatus').innerText = 'مشترك (' + planName.split(' ')[0] + ')';
-            document.getElementById('subStatus').style.color = '#10b981';
-            closeSubModal();
+        async function createCheckout(planType) {
+            alert('جاري الانتقال إلى بوابة الدفع الآمنة...');
+            const res = await fetch('/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan: planType })
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert('حدث خطأ في إنشاء جلسة الدفع.');
+            }
         }
 
         function handleKey(e) {
@@ -364,6 +363,36 @@ async def read_index():
     return html_content
 
 
+@app.post("/create-checkout-session")
+async def create_checkout_session(request: Request):
+    data = await request.json()
+    plan = data.get("plan")
+
+    amount = 4900 if plan == 'pro' else 14900
+    product_name = "باقة PRO الشهرية - NOX AI" if plan == 'pro' else "باقة الأعمال السنوية - NOX AI"
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'sar',
+                    'unit_amount': amount,
+                    'product_data': {
+                        'name': product_name,
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url='http://localhost:8000/?success=true',
+            cancel_url='http://localhost:8000/?canceled=true',
+        )
+        return {"url": checkout_session.url}
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+
 @app.post("/chat")
 async def chat_endpoint(request: Request):
     data = await request.json()
@@ -384,7 +413,11 @@ async def generate_endpoint(request: Request):
 
     try:
         model = genai.GenerativeModel(get_best_model(api_key))
-        ai_content = model.generate_content(f"اكتب تفاصيل وتقريراً احترافيًا حول: {topic}").text
+        if service_type == "powerpoint":
+            ai_prompt = f"اكتب محتوى عرض تقديمي مكون من 4 شرائح عن موضوع: '{topic}'. اجعل كل شريحة تبدأ بـ 'شريحة:' وتتضمن عنواناً ونقاطاً واضحة."
+        else:
+            ai_prompt = f"اكتب تفاصيل وتقريراً احترافياً حول: {topic}"
+        ai_content = model.generate_content(ai_prompt).text
     except:
         ai_content = f"محتوى خاص بـ: {topic}"
 
@@ -448,18 +481,17 @@ async def generate_endpoint(request: Request):
 
     elif service_type == "powerpoint":
         prs = Presentation()
-        slide = prs.slides.add_slide(prs.slide_layouts[0])
-        slide.shapes.title.text = topic
-        slide.placeholders[1].text = "منظومة سليمان ماهر الذكية"
+        slide1 = prs.slides.add_slide(prs.slide_layouts[0])
+        slide1.shapes.title.text = topic
+        slide1.placeholders[1].text = "منظومة سليمان ماهر الذكية"
 
-        lines = [line.strip() for line in ai_content.split('\n') if line.strip()]
-        chunk_size = 5
-        for i in range(0, len(lines), chunk_size):
-            chunk = lines[i:i + chunk_size]
-            if not chunk: continue
-            slide2 = prs.slides.add_slide(prs.slide_layouts[1])
-            slide2.shapes.title.text = f"تفاصيل: {topic}"
-            slide2.placeholders[1].text = "\n".join(chunk)
+        sections = ai_content.split("شريحة:")
+        for sec in sections:
+            if not sec.strip(): continue
+            lines = [l.strip() for l in sec.split('\n') if l.strip()]
+            slide = prs.slides.add_slide(prs.slide_layouts[1])
+            slide.shapes.title.text = lines[0] if lines else "محتوى العرض"
+            slide.placeholders[1].text = "\n".join(lines[1:]) if len(lines) > 1 else sec
 
         path = "Gemini_Presentation.pptx"
         prs.save(path)
