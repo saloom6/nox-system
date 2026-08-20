@@ -1,10 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-import os
+import google.generativeai as genai
 import docx
 from pptx import Presentation
 import openpyxl
-import openai
 
 app = FastAPI()
 
@@ -14,7 +13,7 @@ html_content = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NOX AI Studio | المنظومة المتكاملة</title>
+    <title>NOX AI Studio | منظومة Gemini الذكية</title>
     <style>
         :root {
             --bg-sidebar: #171717;
@@ -23,8 +22,8 @@ html_content = """
             --border-color: #383838;
             --text-main: #ececec;
             --text-muted: #9b9b9b;
-            --accent-color: #10a37f;
-            --accent-hover: #1a7f64;
+            --accent-color: #1a73e8;
+            --accent-hover: #1557b0;
         }
 
         body {
@@ -37,7 +36,6 @@ html_content = """
             overflow: hidden;
         }
 
-        /* الشريط الجانبي */
         .sidebar {
             width: 280px;
             background-color: var(--bg-sidebar);
@@ -111,7 +109,6 @@ html_content = """
         }
         .history-item:hover { background-color: var(--bg-input); }
 
-        /* منطقة المحادثة الرئيسية */
         .main-content {
             flex-grow: 1;
             display: flex;
@@ -141,13 +138,6 @@ html_content = """
             line-height: 1.6;
             font-size: 15px;
         }
-        .message.user {
-            align-self: flex-start;
-            background-color: #2f2f2f;
-            padding: 12px 18px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
         .message.ai {
             align-self: flex-start;
             background-color: transparent;
@@ -169,7 +159,6 @@ html_content = """
         .user-av { background: #5436da; color: #fff; }
         .ai-av { background: var(--accent-color); color: #fff; }
 
-        /* منطقة الإدخال بالأسفل */
         .input-area {
             padding: 20px;
             background: linear-gradient(to top, var(--bg-main) 80%, transparent);
@@ -255,68 +244,53 @@ html_content = """
 </head>
 <body>
 
-    <!-- الشريط الجانبي للإعدادات والموديلات -->
     <div class="sidebar">
         <button class="new-chat-btn" onclick="location.reload()">
             <span>＋</span> محادثة جديدة
         </button>
 
         <div class="settings-group">
-            <label>مفتاح OpenAI API Key</label>
-            <input type="password" id="apiKey" placeholder="sk-...">
+            <label>مفتاح Gemini API Key</label>
+            <input type="password" id="apiKey" placeholder="AIzaSy...">
         </div>
 
         <div class="settings-group">
-            <label>اختر نموذج الذكاء الاصطناعي</label>
+            <label>نموذج الذكاء الاصطناعي</label>
             <select id="modelType">
-                <option value="gpt-4o-mini">GPT-4o-mini (سريع وذكي)</option>
-                <option value="gpt-4o">GPT-4o (شامل وعالي الدقة)</option>
-            </select>
-        </div>
-
-        <div class="settings-group">
-            <label>شخصية الذكاء الاصطناعي</label>
-            <select id="persona">
-                <option value="مساعد أعمال ومشاريع محترف">خبير أعمال وتقارير</option>
-                <option value="محلل بيانات ومالية">محلل مالي وبيانات</option>
-                <option value="كاتب محتوى تسويقي إبداعي">خبير تسويق ومحتوى</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (سريع جداً ومجاني)</option>
             </select>
         </div>
 
         <div class="history-title">سجل العمليات</div>
-        <div class="history-list" id="historyList">
-            <div class="history-item">📄 تحليل خطة العمل</div>
-            <div class="history-item">📊 تقرير المبيعات</div>
+        <div class="history-list">
+            <div class="history-item">📄 تقرير المشاريع</div>
         </div>
 
         <div class="user-profile">
             <div class="avatar user-av">س</div>
             <div>
                 <div style="font-weight: 600;">سليمان ماهر</div>
-                <div style="font-size: 11px; color: var(--text-muted);">مطور المنظومة</div>
+                <div style="font-size: 11px; color: var(--text-muted);">مطوّر المنظومة</div>
             </div>
         </div>
     </div>
 
-    <!-- منطقة الشات والدردشة الرئيسية -->
     <div class="main-content">
         <div class="chat-messages" id="chatMessages">
- رسالة الترحيب الافتراضية -->
             <div class="message ai">
                 <div style="display: flex; gap: 15px;">
                     <div class="avatar ai-av">AI</div>
                     <div>
-                        <strong>أهلاً بك يا سليمان في استوديو NOX الذكي.</strong>
-                        <p style="color: var(--text-muted); margin: 5px 0 0 0;">قم بإدخال مفتاح الـ API الخاص بك من القائمة الجانبية، واكتب طلبك أو استفسارك بالأعلى لنبدأ الإنجاز الفوري وتوليد التقارير.</p>
+                        <strong>أهلاً بك يا سليمان في منظومة Gemini الذكية.</strong>
+                        <p style="color: var(--text-muted); margin: 5px 0 0 0;">قم بنسخ مفتاحك من Google AI Studio والصقه بالأعلى، ثم اكتب أي طلب لنبدأ التوليد والتحليل الفوري.</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- صندوق الإدخال السفلي -->
         <div class="input-area">
             <div class="input-box-wrapper">
-                <textarea id="promptInput" placeholder="اكتب رسالتك أو موضوع التقرير هنا (Enter للإرسال)..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
+                <textarea id="promptInput" placeholder="اكتب طلبك أو موضوع التقرير هنا..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
                 <div class="input-controls">
                     <span style="font-size: 12px; color: var(--text-muted);">اضغط إرسال أو اختر تصدير مباشر للملفات</span>
                     <button class="send-btn" onclick="sendMessage()">إرسال ➔</button>
@@ -336,21 +310,18 @@ html_content = """
         async function sendMessage() {
             const promptInput = document.getElementById('promptInput');
             const apiKey = document.getElementById('apiKey').value;
-            const modelType = document.getElementById('modelType').value;
-            const persona = document.getElementById('persona').value;
             const chatMessages = document.getElementById('chatMessages');
 
             const text = promptInput.value.trim();
             if (!text) return;
 
             if (!apiKey) {
-                alert('الرجاء إدخال مفتاح OpenAI API Key من القائمة الجانبية أولاً.');
+                alert('الرجاء إدخال مفتاح Gemini API Key في القائمة الجانبية أولاً.');
                 return;
             }
 
-            // عرض رسالة المستخدم
             chatMessages.innerHTML += `
-                <div class="message user">
+                <div class="message user" style="align-self: flex-start; background: #2f2f2f; padding: 12px 18px; border-radius: 12px;">
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <div class="avatar user-av">س</div>
                         <div>${text}</div>
@@ -360,13 +331,12 @@ html_content = """
             promptInput.value = '';
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // رسالة الانتظار
             const loadingId = 'loading-' + Date.now();
             chatMessages.innerHTML += `
                 <div class="message ai" id="${loadingId}">
                     <div style="display: flex; gap: 15px;">
                         <div class="avatar ai-av">AI</div>
-                        <div style="color: #38bdf8;">⏳ جاري التفكير ومعالجة الطلب...</div>
+                        <div style="color: #38bdf8;">⏳ جاري المعالجة عبر Gemini...</div>
                     </div>
                 </div>
             `;
@@ -376,7 +346,7 @@ html_content = """
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: text, apiKey, modelType, persona })
+                    body: JSON.stringify({ prompt: text, apiKey })
                 });
 
                 const data = await response.json();
@@ -410,14 +380,12 @@ html_content = """
 
         async function exportFile(topic, type) {
             const apiKey = document.getElementById('apiKey').value;
-            const modelType = document.getElementById('modelType').value;
-
             alert('جاري تجهيز وتنزيل ملف الـ ' + type.toUpperCase() + '...');
 
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic: decodeURIComponent(topic), apiKey, modelType, serviceType: type })
+                body: JSON.stringify({ topic: decodeURIComponent(topic), apiKey, serviceType: type })
             });
 
             if (response.ok) {
@@ -425,7 +393,7 @@ html_content = """
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = type === 'word' ? 'NOX_Report.docx' : type === 'powerpoint' ? 'NOX_Presentation.pptx' : 'NOX_Sheet.xlsx';
+                a.download = type === 'word' ? 'Gemini_Report.docx' : type === 'powerpoint' ? 'Gemini_Presentation.pptx' : 'Gemini_Sheet.xlsx';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -449,24 +417,15 @@ async def chat_endpoint(request: Request):
     data = await request.json()
     prompt = data.get("prompt")
     api_key = data.get("apiKey")
-    model_type = data.get("modelType", "gpt-4o-mini")
-    persona = data.get("persona", "مساعد أعمال محترف")
 
     if not api_key:
         return JSONResponse(content={"detail": "مفتاح API مطلوب"}, status_code=400)
 
     try:
-        client = openai.OpenAI(api_key=api_key)
-        completion = client.chat.completions.create(
-            model=model_type,
-            messages=[
-                {"role": "system",
-                 "content": f"أنت ذكاء اصطناعي تعمل بصفتك: {persona}. أجب باحترافية وبتنسيق دقيق باللغة العربية."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        reply = completion.choices[0].message.content
-        return {"reply": reply}
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return {"reply": response.text}
     except Exception as e:
         return JSONResponse(content={"detail": str(e)}, status_code=400)
 
@@ -476,55 +435,49 @@ async def generate_endpoint(request: Request):
     data = await request.json()
     topic = data.get("topic")
     api_key = data.get("apiKey")
-    model_type = data.get("modelType", "gpt-4o-mini")
     service_type = data.get("serviceType")
 
     try:
-        client = openai.OpenAI(api_key=api_key)
-        completion = client.chat.completions.create(
-            model=model_type,
-            messages=[
-                {"role": "system", "content": "أنت مساعد ذكاء اصطناعي لتجهيز محتوى الملفات والتقارير التنفيذية."},
-                {"role": "user", "content": f"اكتب محتوى تفصيلي ومنظم لإنشاء ملف حول: {topic}"}
-            ]
-        )
-        ai_content = completion.choices[0].message.content
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(f"اكتب تقرير مفصل ومنظم حول موضوع: {topic}")
+        ai_content = response.text
     except Exception as e:
         ai_content = f"محتوى افتراضي للموضوع: {topic}"
 
     if service_type == "word":
         doc = docx.Document()
-        doc.add_heading(f'تقرير: {topic}', 0)
+        doc.add_heading(f'تقرير Gemini: {topic}', 0)
         for line in ai_content.split('\n'):
             if line.strip(): doc.add_paragraph(line)
-        path = "NOX_Report.docx"
+        path = "Gemini_Report.docx"
         doc.save(path)
-        return FileResponse(path, filename="NOX_Report.docx")
+        return FileResponse(path, filename="Gemini_Report.docx")
 
     elif service_type == "powerpoint":
         prs = Presentation()
         slide = prs.slides.add_slide(prs.slide_layouts[0])
         slide.shapes.title.text = topic
-        slide.placeholders[1].text = "منظومة NOX AI Studio"
+        slide.placeholders[1].text = "منظومة Gemini AI"
 
         slide2 = prs.slides.add_slide(prs.slide_layouts[1])
         slide2.shapes.title.text = "التفاصيل الأساسية"
         slide2.placeholders[1].text = ai_content[:600]
 
-        path = "NOX_Presentation.pptx"
+        path = "Gemini_Presentation.pptx"
         prs.save(path)
-        return FileResponse(path, filename="NOX_Presentation.pptx")
+        return FileResponse(path, filename="Gemini_Presentation.pptx")
 
     elif service_type == "excel":
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "NOX Data"
+        ws.title = "Gemini Data"
         ws['A1'] = "الموضوع"
         ws['B1'] = topic
         ws['A2'] = "التحليل المستخرج"
         ws['B2'] = ai_content[:400]
-        path = "NOX_Sheet.xlsx"
+        path = "Gemini_Sheet.xlsx"
         wb.save(path)
-        return FileResponse(path, filename="NOX_Sheet.xlsx")
+        return FileResponse(path, filename="Gemini_Sheet.xlsx")
 
     return JSONResponse(content={"detail": "خطأ في نوع الملف"}, status_code=400)
