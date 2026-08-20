@@ -2,64 +2,66 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>NOX | المنظومة الذكية</title>
+    <title>منظومة سليمان ماهر الذكية</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background-color: #0b0f19; color: #f8fafc; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-
-        /* زر القائمة */
-        .menu-btn { position: fixed; top: 20px; right: 20px; background: #131b2e; border: 1px solid #1e293b; color: #fff; padding: 10px 15px; border-radius: 8px; cursor: pointer; z-index: 1000; }
-
-        /* القائمة الجانبية */
-        .sidebar { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: #111827; border-left: 1px solid #1f2937; transition: 0.4s; z-index: 999; padding: 20px; box-sizing: border-box; }
-        .sidebar.open { right: 0; }
-        .close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 20px; }
-
-        /* الواجهة الرئيسية */
-        .card { background: #131b2e; padding: 30px; border-radius: 16px; width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); text-align: center; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; background: #0b0f19; border: 1px solid #334155; color: #fff; text-align: right; }
-        .generate-btn { width: 100%; background: #4f46e5; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; display: flex; justify-content: center; }
+        .container { max-width: 500px; width: 100%; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { background: #1F4E78; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #153a5c; }
     </style>
 </head>
 <body>
+<div class="container">
+    <h2>منظومة سليمان ماهر الذكية</h2>
+    <input type="text" id="apiKey" placeholder="ادخل مفتاح Google API Key">
+    <input type="text" id="topic" placeholder="ما هو موضوع المشروع الذي تريده؟">
+    <select id="serviceType">
+        <option value="excel">ملف Excel (تحليل بيانات)</option>
+        <option value="word">ملف Word (تقرير استراتيجي)</option>
+        <option value="powerpoint">ملف PowerPoint (عرض تقديمي)</option>
+    </select>
+    <button onclick="generate()">بدء التوليد والتحميل</button>
+</div>
 
-    <button class="menu-btn" onclick="toggleSidebar()">☰ القائمة</button>
+<script>
+async function generate() {
+    const data = {
+        apiKey: document.getElementById('apiKey').value,
+        topic: document.getElementById('topic').value,
+        serviceType: document.getElementById('serviceType').value
+    };
 
-    <div class="sidebar" id="sidebar">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h3>لوحة التحكم</h3>
-            <button class="close-btn" onclick="toggleSidebar()">✕</button>
-        </div>
-        <div style="background:#1f2937; padding:15px; border-radius:10px; text-align:center;">
-            <p>مرحباً يا سليمان</p>
-            <button style="background:#4f46e5; border:none; color:white; padding:5px 15px; border-radius:5px;">دخول</button>
-        </div>
-        <div style="margin-top:20px;">
-            <h4>الملفات المحفوظة</h4>
-            <div style="background:#1f2937; padding:10px; border-radius:8px; margin-bottom:5px;">📄 تقرير الميزانية</div>
-        </div>
-    </div>
+    if(!data.apiKey || !data.topic) {
+        alert("يرجى إدخال مفتاح الـ API وموضوع المشروع");
+        return;
+    }
 
-    <div class="card">
-        <h2>NOX ENGINE v2.0</h2>
-        <input type="text" id="topic" placeholder="موضوع الملف">
-        <input type="password" id="apiKey" placeholder="مفتاح الوصول">
-        <select id="serviceType">
-            <option value="word">تقرير نصي - Word</option>
-            <option value="powerpoint">عرض تقديمي - PowerPoint</option>
-            <option value="excel">جدول بيانات - Excel</option>
-        </select>
-        <button class="generate-btn" onclick="generateFile()">تنفيذ وتوليد الملف</button>
-        <div id="status" style="margin-top:15px;"></div>
-    </div>
+    // الرابط المحدث الخاص بسيرفرك
+    const API_URL = "https://nox-system-siun.onrender.com/generate";
 
-    <script>
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-        async function generateFile() {
-            // كود التوليد كما هو
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = '⏳ جاري المعالجة...';
-            // ... (بقية كود الاتصال كما سبق)
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "My_Generated_Project_File";
+            a.click();
+            alert("تم توليد الملف بنجاح!");
+        } else {
+            alert("حدث خطأ أثناء الاتصال بالسيرفر. تأكد من صحة الـ API Key.");
         }
-    </script>
+    } catch (error) {
+        alert("فشل الاتصال بالسيرفر. تأكد أن السيرفر يعمل.");
+    }
+}
+</script>
 </body>
-</html
+</html>
