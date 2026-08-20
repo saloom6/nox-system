@@ -6,10 +6,11 @@ from pptx import Presentation
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+import os
 
 app = FastAPI()
 
-# HTML Frontend
+# HTML Frontend الشامل (القائمة الجانبية، تسجيل الدخول، الدفع والاشتراكات، والذكاء الاصطناعي)
 html_content = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -36,15 +37,18 @@ html_content = """
             height: 100vh;
             overflow: hidden;
         }
+        /* القائمة الجانبية */
         .sidebar {
-            width: 280px;
+            width: 300px;
             background-color: var(--bg-sidebar);
             border-left: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            padding: 15px;
+            padding: 20px;
             box-sizing: border-box;
+            justify-content: space-between;
         }
+        .sidebar h2 { font-size: 18px; color: #fff; margin-bottom: 20px; text-align: center; }
         .settings-group { margin-bottom: 15px; }
         .settings-group label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px; }
         .settings-group input {
@@ -58,6 +62,30 @@ html_content = """
             box-sizing: border-box;
             outline: none;
         }
+        .user-panel {
+            background: var(--bg-input);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+        .action-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .action-btn:hover { background-color: var(--accent-hover); }
+        .sub-btn { background-color: #059669; }
+        .sub-btn:hover { background-color: #047857; }
+
+        /* المحتوى الرئيسي */
         .main-content {
             flex-grow: 1;
             display: flex;
@@ -72,7 +100,7 @@ html_content = """
             display: flex;
             flex-direction: column;
             gap: 20px;
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             margin: 0 auto;
             box-sizing: border-box;
@@ -96,7 +124,7 @@ html_content = """
             border-radius: 16px;
             padding: 12px 15px;
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -120,11 +148,13 @@ html_content = """
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
+            align-self: flex-end;
         }
         .export-buttons {
             display: flex;
             gap: 8px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
         .export-btn {
             background: #334155;
@@ -136,41 +166,124 @@ html_content = """
             cursor: pointer;
         }
         .export-btn:hover { background: #475569; }
+
+        /* نافذة الاشتراك والدفع المنبثقة (Modal) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: var(--bg-sidebar);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            width: 400px;
+            text-align: center;
+        }
+        .pricing-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .pricing-card:hover { border-color: var(--accent-color); }
     </style>
 </head>
 <body>
 
+    <!-- القائمة الجانبية -->
     <div class="sidebar">
-        <h3>الإعدادات</h3>
-        <div class="settings-group">
-            <label>مفتاح Gemini API Key</label>
-            <input type="password" id="apiKey" placeholder="AIzaSy...">
+        <div>
+            <h2>NOX AI Studio</h2>
+
+            <div class="user-panel">
+                <div id="userInfo" style="font-size: 13px; margin-bottom: 8px;">مرحباً: <b>زائر</b></div>
+                <button class="action-btn" id="authBtn" onclick="toggleAuth()">تسجيل الدخول</button>
+            </div>
+
+            <div class="settings-group">
+                <label>مفتاح Gemini API Key</label>
+                <input type="password" id="apiKey" placeholder="AIzaSy...">
+            </div>
+
+            <div class="user-panel" style="text-align: center;">
+                <div style="font-size: 12px; color: var(--text-muted);">حالة الاشتراك</div>
+                <div id="subStatus" style="font-size: 14px; font-weight: bold; color: #f59e0b; margin: 5px 0;">باقة مجانية</div>
+                <button class="action-btn sub-btn" onclick="openSubModal()">ترقية الاشتراك والدفع 💳</button>
+            </div>
         </div>
-        <div style="margin-top: auto; font-size: 13px; color: var(--text-muted);">
-            <div><b>سليمان ماهر</b></div>
-            <div>منظومة العمل الذكية</div>
+
+        <div style="font-size: 12px; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border-color); padding-top: 10px;">
+            <b>سليمان ماهر</b> © 2026
         </div>
     </div>
 
+    <!-- المحتوى الرئيسي -->
     <div class="main-content">
         <div class="chat-messages" id="chatMessages">
             <div class="message">
-                <strong>أهلاً بك يا سليمان.</strong>
-                <p style="color: var(--text-muted); margin: 5px 0 0 0;">قم بإدخال مفتاح الـ API بالأعلى وابدأ كتابة طلبك لتحليل أو إنشاء الملفات مباشرة.</p>
+                <strong>أهلاً بك يا سليمان في منظومتك المتكاملة.</strong>
+                <p style="color: var(--text-muted); margin: 5px 0 0 0;">القائمة الجانبية جاهزة لإدارة حسابك ومفتاح الـ API والاشتراكات، وابدأ بكتابة طلبك بالأسفل.</p>
             </div>
         </div>
 
         <div class="input-area">
             <div class="input-box-wrapper">
-                <textarea id="promptInput" placeholder="اكتب طلبك هنا (مثال: ابي جدول احترافي اكسل لربع الاول للسنة)..." onkeydown="handleKey(event)"></textarea>
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="send-btn" onclick="sendMessage()">إرسال ➔</button>
-                </div>
+                <textarea id="promptInput" placeholder="اكتب طلبك هنا (مثال: جدول احترافي اكسل للربع الاول أو تقرير شامل)..." onkeydown="handleKey(event)"></textarea>
+                <button class="send-btn" onclick="sendMessage()">إرسال ➔</button>
             </div>
         </div>
     </div>
 
+    <!-- نافذة الاشتراكات والدفع -->
+    <div class="modal" id="subModal">
+        <div class="modal-content">
+            <h3>اختر خطة الاشتراك</h3>
+            <p style="font-size: 12px; color: var(--text-muted);">استمتع بمميزات غير محدودة وتصدير احترافي</p>
+
+            <div class="pricing-card" onclick="processPayment('باقة PRO الشهرية - 49 ريال')">
+                <h4>باقة PRO</h4>
+                <p style="font-size: 13px; color: var(--text-muted);">تصدير غير محدود + نماذج متقدمة</p>
+                <b>49 ر.س / شهرياً</b>
+            </div>
+
+            <div class="pricing-card" onclick="processPayment('الباقة الذهبية للأعمال - 149 ريال')">
+                <h4>باقة الأعمال (Enterprise)</h4>
+                <p style="font-size: 13px; color: var(--text-muted);">دعم كامل للشركات والربط البرمجي</p>
+                <b>149 ر.س / سنوياً</b>
+            </div>
+
+            <button class="action-btn" style="background: #ef4444; margin-top: 15px;" onclick="closeSubModal()">إغلاق</button>
+        </div>
+    </div>
+
     <script>
+        let isLoggedIn = false;
+
+        function toggleAuth() {
+            isLoggedIn = !isLoggedIn;
+            document.getElementById('userInfo').innerHTML = isLoggedIn ? 'مرحباً: <b>سليمان ماهر</b>' : 'مرحباً: <b>زائر</b>';
+            document.getElementById('authBtn').innerText = isLoggedIn ? 'تسجيل الخروج' : 'تسجيل الدخول';
+            document.getElementById('authBtn').style.background = isLoggedIn ? '#374151' : '#1a73e8';
+        }
+
+        function openSubModal() { document.getElementById('subModal').style.display = 'flex'; }
+        function closeSubModal() { document.getElementById('subModal').style.display = 'none'; }
+
+        function processPayment(planName) {
+            alert('تم اختيار: ' .concat(planName, '\\nجاري توجيهك لبوابة الدفع الآمنة...'));
+            document.getElementById('subStatus').innerText = 'مشترك (' + planName.split(' ')[0] + ')';
+            document.getElementById('subStatus').style.color = '#10b981';
+            closeSubModal();
+        }
+
         function handleKey(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -183,7 +296,7 @@ html_content = """
             const apiKey = document.getElementById('apiKey').value;
             const chat = document.getElementById('chatMessages');
             if (!text) return;
-            if (!apiKey) { alert('الرجاء إدخال مفتاح API أولاً'); return; }
+            if (!apiKey) { alert('الرجاء إدخال مفتاح API في القائمة الجانبية أولاً'); return; }
 
             chat.innerHTML += `<div class="message"><b>أنت:</b> ${text}</div>`;
             document.getElementById('promptInput').value = '';
@@ -200,8 +313,10 @@ html_content = """
                     <b>AI:</b>
                     <div style="white-space: pre-wrap; margin-top: 8px;">${data.reply}</div>
                     <div class="export-buttons">
-                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'excel')">📥 تصدير Excel (Q1)</button>
-                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'word')">📥 تصدير Word</button>
+                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'excel')">📥 Excel (Q1)</button>
+                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'word')">📥 Word</button>
+                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'powerpoint')">📥 PowerPoint</button>
+                        <button class="export-btn" onclick="exportFile('${encodeURIComponent(text)}', 'pdf')">📥 Text/PDF</button>
                     </div>
                 </div>
             `;
@@ -221,7 +336,8 @@ html_content = """
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = type === 'excel' ? 'Q1_Professional_Sheet.xlsx' : 'Gemini_Report.docx';
+                const ext = type === 'excel' ? 'xlsx' : type === 'word' ? 'docx' : type === 'powerpoint' ? 'pptx' : 'txt';
+                a.download = `Gemini_File.${ext}`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -268,7 +384,7 @@ async def generate_endpoint(request: Request):
 
     try:
         model = genai.GenerativeModel(get_best_model(api_key))
-        ai_content = model.generate_content(f"اكتب تفاصيل حول: {topic}").text
+        ai_content = model.generate_content(f"اكتب تفاصيل وتقريراً احترافيًا حول: {topic}").text
     except:
         ai_content = f"محتوى خاص بـ: {topic}"
 
@@ -321,7 +437,7 @@ async def generate_endpoint(request: Request):
         wb.save(path)
         return FileResponse(path, filename="Q1_Professional_Sheet.xlsx")
 
-    else:
+    elif service_type == "word":
         doc = docx.Document()
         doc.add_heading(f'تقرير: {topic}', 0)
         for line in ai_content.split('\n'):
@@ -329,3 +445,28 @@ async def generate_endpoint(request: Request):
         path = "Gemini_Report.docx"
         doc.save(path)
         return FileResponse(path, filename="Gemini_Report.docx")
+
+    elif service_type == "powerpoint":
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[0])
+        slide.shapes.title.text = topic
+        slide.placeholders[1].text = "منظومة سليمان ماهر الذكية"
+
+        lines = [line.strip() for line in ai_content.split('\n') if line.strip()]
+        chunk_size = 5
+        for i in range(0, len(lines), chunk_size):
+            chunk = lines[i:i + chunk_size]
+            if not chunk: continue
+            slide2 = prs.slides.add_slide(prs.slide_layouts[1])
+            slide2.shapes.title.text = f"تفاصيل: {topic}"
+            slide2.placeholders[1].text = "\n".join(chunk)
+
+        path = "Gemini_Presentation.pptx"
+        prs.save(path)
+        return FileResponse(path, filename="Gemini_Presentation.pptx")
+
+    else:
+        path = "Gemini_Document.txt"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(ai_content)
+        return FileResponse(path, filename="Gemini_Document.txt")
