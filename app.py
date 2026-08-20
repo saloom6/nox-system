@@ -1,9 +1,41 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import google.generativeai as genai
+import openpyxl
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+from pptx import Presentation
+import docx
+import os
+
+# 1. إنشاء التطبيق
+app = FastAPI()
+
+# 2. إعدادات الـ CORS للسماح بالاتصال من أي واجهة أمامية
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 3. دالة جلب النموذج معدلة لتستقبل مفتاح الـ API بدون أخطاء
+def get_best_model(api_key=None):
+    return "gemini-1.5-flash"
+
+# 4. نقطة التوليد الرئيسية
 @app.post("/generate")
 async def generate_endpoint(request: Request):
     data = await request.json()
     topic = data.get("topic")
     api_key = data.get("apiKey")
     service_type = data.get("serviceType")
+
+    # إعداد مفتاح جوجل جيميناي
+    if api_key:
+        genai.configure(api_key=api_key)
 
     # توجيه ذكي عام لأي موضوع يطلبه المستخدم لجلب تفاصيل احترافية
     try:
@@ -37,7 +69,7 @@ async def generate_endpoint(request: Request):
             ai_prompt = f"اكتب تقريراً احترافياً ومفصلاً وشاملاً حول الموضوع التالي بناءً على طلب المستخدم: '{topic}'"
 
         ai_content = model.generate_content(ai_prompt).text
-    except:
+    except Exception as e:
         ai_content = f"محتوى تفصيلي خاص بمشروع: {topic}"
 
     # 1. تصدير ملف إكسل ديناميكي يعتمد على طلب المستخدم
@@ -137,3 +169,8 @@ async def generate_endpoint(request: Request):
         with open(path, "w", encoding="utf-8") as f:
             f.write(ai_content)
         return FileResponse(path, filename="Dynamic_Document.txt")
+
+# 5. نقطة فحص للتاكد من عمل السيرفر
+@app.get("/")
+async def root():
+    return {"message": "Nox System API is running successfully"}
