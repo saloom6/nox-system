@@ -1,6 +1,7 @@
 fastapi
 uvicorn
+google-generativeai
 python-docx
 python-pptx
 openpyxl
-google-generativeai
+stripe
