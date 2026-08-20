@@ -257,7 +257,7 @@ html_content = """
         <div class="settings-group">
             <label>نموذج الذكاء الاصطناعي</label>
             <select id="modelType">
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (سريع ومجاني)</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash (سريع ومجاني)</option>
             </select>
         </div>
 
@@ -423,7 +423,7 @@ async def chat_endpoint(request: Request):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
         response = model.generate_content(prompt)
         return {"reply": response.text}
     except Exception as e:
@@ -439,7 +439,7 @@ async def generate_endpoint(request: Request):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
         response = model.generate_content(f"اكتب تقرير مفصل ومنظم حول موضوع: {topic}")
         ai_content = response.text
     except Exception as e:
