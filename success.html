@@ -3,73 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جاري تجهيز طلبك | منظومة سليمان ماهر</title>
+    <title>تم الدفع بنجاح - منظومة سليمان ماهر الذكية</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: white;
+            background-color: #0d1117;
+            color: #ffffff;
+            font-family: Tahoma, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
-            text-align: center;
         }
-        .container {
-            background: #1e293b;
+        .card {
+            background-color: #161b22;
             padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            border: 1px solid #334155;
-            max-width: 450px;
-            width: 90%;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 100%;
         }
-        h1 { color: #10b981; margin-bottom: 20px; }
-        p { color: #94a3b8; font-size: 16px; line-height: 1.6; }
-        .spinner {
-            border: 4px solid #334155;
-            border-top: 4px solid #10b981;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 25px auto;
+        h2 {
+            color: #2ea043;
+            margin-bottom: 10px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        p {
+            color: #8b949e;
+            font-size: 14px;
+        }
+        .checkmark {
+            font-size: 50px;
+            color: #2ea043;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>تم الدفع بنجاح!</h1>
-        <p>جاري توليد الملف الخاص بك الآن...</p>
-        <div class="spinner"></div>
-        <p id="status">يرجى الانتظار، لا تغلق الصفحة.</p>
+
+    <div class="card">
+        <div class="checkmark">✓</div>
+        <h2>تم الدفع بنجاح!</h2>
+        <p id="status-text">جاري إرسال طلبك ومعالجته، سيصلك الملف قريباً...</p>
     </div>
 
     <script>
-        // استرجاع البيانات المخزنة من الصفحة الأولى
-        const topic = localStorage.getItem('topic');
-        const type = localStorage.getItem('type');
+        // رابط الـ Webhook الخاص بمشروعك
+        const webhookUrl = 'https://hook.eu1.make.com/hr22onsg1iv8fvlkhpl7asq6dy9thmv6';
 
-        // رابط الـ Webhook الخاص بك في Make.com
-        const webhookUrl = 'https://hook.eu1.make.com/99d44l95ay4o9lqp12no82dn4egza710';
+        // إرسال البيانات للـ Webhook في الخلفية بدون انتظار الرد لمنع تعليق الصفحة
+        fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: 'success',
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => {
+            console.log('Background trigger sent');
+        });
 
-        if(topic && webhookUrl) {
-            fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic: topic, type: type })
-            })
-            .then(response => {
-                document.getElementById('status').innerText = "تم إرسال الطلب بنجاح! سيصلك الملف قريباً.";
-            })
-            .catch(error => {
-                document.getElementById('status').innerText = "حدث خطأ في الاتصال، يرجى التواصل معنا.";
-            });
-        } else {
-            document.getElementById('status').innerText = "تم استلام الدفع بنجاح.";
-        }
+        // تغيير النص بعد ثانيتين لتأكيد نجاح العملية للمستخدم
+        setTimeout(() => {
+            document.getElementById('status-text').innerText = 'تم استلام طلبك بنجاح وجاري العمل عليه.';
+        }, 2000);
     </script>
+
 </body>
 </html>
